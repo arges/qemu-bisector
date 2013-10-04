@@ -1,0 +1,29 @@
+#!/bin/bash
+# Run this from within the qemu git directory.
+
+function compile() {
+  make distclean
+  git clean -f
+  make clean
+  ./configure --target-list="x86_64-softmmu x86_64-linux-user" --disable-werror --enable-kvm
+  make -j7 || exit 125
+}
+
+echo "Compiling code..."
+#compile || exit 125 > /dev/null
+
+echo "Testing..."
+sudo $(dirname $0)/testcase 2>&1 | tee kvm.log
+
+# Check value
+retval=125
+if grep -i 'RESULT: FAIL' kvm.log ; then
+    retval=0
+fi
+
+if grep -i 'RESULT: PASS' kvm.log ; then
+    retval=1
+fi
+
+exit $retval
+

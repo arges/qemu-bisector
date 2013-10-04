@@ -1,0 +1,29 @@
+#!/usr/bin/expect
+
+set timeout -1
+# Edit your own command here
+spawn ./x86_64-softmmu/qemu-system-x86_64 -M pc-1.0 -enable-kvm -m 1024 -smp 2,sockets=2,cores=1,threads=1 -name testdisk1 -nodefconfig -nodefaults -drive file=../test_disk.qcow2,if=none,id=drive-virtio-disk0,format=qcow2 -device virtio-blk-pci,bus=pci.0,addr=0x5,drive=drive-virtio-disk0,id=virtio-disk0,bootindex=1 -monitor telnet::4444,server,nowait -serial stdio -vga none
+set qemu_id $spawn_id
+
+# Wait until it boots 
+expect -i $qemu_id "# "
+
+spawn telnet localhost 4444
+set telnet_id $spawn_id
+
+# These are the monitor commands 
+expect -i $telnet_id "(qemu)"
+send -i $telnet_id "stop\r"
+expect -i $telnet_id "(qemu)"
+send -i $telnet_id "savevm 0\r"
+expect -i $telnet_id "(qemu)"
+send -i $telnet_id "loadvm 0\r"
+expect -i $telnet_id "(qemu)"
+send -i $telnet_id "c\r"
+expect -i $telnet_id "(qemu)"
+
+# These are the other test commands
+send -i $qemu_id "./test.sh > after\r"
+expect -i $qemu_id "# "
+send -i $qemu_id "./compare.sh\r"
+expect -i $qemu_id "# "
