@@ -1,0 +1,26 @@
+NAME=testvm
+SIZE=8G
+RAM=1024
+RELEASE=trusty
+
+qemu-img create -f qcow2 /var/lib/libvirt/images/${NAME}.qcow2 $SIZE
+
+virt-install \
+--connect qemu:///system \
+--name $NAME \
+--ram $RAM \
+--disk path=/var/lib/libvirt/images/${NAME}.qcow2,format=qcow2 \
+--network network=default,model=virtio \
+--location http://us.archive.ubuntu.com/ubuntu/dists/${RELEASE}-updates/main/installer-amd64 \
+--initrd-inject=$(pwd)/preseed.cfg \
+--extra-args="priority=critical locale=en_US" \
+--os-type=linux \
+--os-variant=ubuntu${release} \
+--virt-type kvm \
+--video=vga \
+--noreboot
+
+# Post install steps:
+# - ensure GRUB_RECORDFAIL_TIMEOUT=1
+# - ensure autologin to root from ttyS0
+# - remove obsolete /etc/networking/interface

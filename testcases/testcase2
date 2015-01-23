@@ -1,0 +1,39 @@
+#!/usr/bin/expect
+
+set timeout 120
+set NAME "testcase2"
+set DISK "/srv/testcase2.qcow2"
+
+# Create snapshot
+exec ./qemu-img snapshot -c pristine $DISK
+
+# Edit your own command here
+spawn ./x86_64-softmmu/qemu-system-x86_64 -M pc-1.0 -enable-kvm \
+  -m 1024 -smp 2,sockets=2,cores=1,threads=1 \
+  -name $NAME -nodefconfig -nodefaults \
+  -drive file=$DISK,if=none,id=drive-virtio-disk0,format=qcow2 \
+  -device virtio-blk-pci,bus=pci.0,addr=0x5,drive=drive-virtio-disk0,id=virtio-disk0,bootindex=1 \
+  -monitor telnet::4444,server,nowait -serial stdio -vga none -nographic
+
+# wait until it boots and run test
+expect {
+  "root@ubuntu:~# " {
+  }
+  timeout {
+    send_user "failed to boot!!!\n"
+    exec ./qemu-img snapshot -d pristine $DISK
+    exit 1
+  }
+}
+
+send "bonnie++ -n 10:4096 -u 0:0\r"
+sleep 5
+expect "root@ubuntu:~# "
+send "fio test\r"
+sleep 5
+expect "root@ubuntu:~# "
+send "poweroff\r"
+sleep 5
+
+# delete snapshot
+exec ./qemu-img snapshot -d pristine $DISK
